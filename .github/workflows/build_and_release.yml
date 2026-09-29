@@ -1,0 +1,191 @@
+name: Build Android App (APK & AAB)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag (e.g., v1.0.0)'
+        required: false
+        default: ''
+      build_aab:
+        description: 'Build Google Play AppBundle (.aab)'
+        type: boolean
+        required: false
+        default: true
+      build_apk:
+        description: 'Build Android APK (.apk)'
+        type: boolean
+        required: false
+        default: true
+      prerelease:
+        description: 'Mark as pre-release'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    name: Build Android APK & AppBundle
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: ☕ Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: 🐦 Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: 🔍 Detect App Directory & Extract Version
+        id: app_info
+        run: |
+          if [ -f "pubspec.yaml" ]; then
+            APP_DIR="."
+          elif [ -f "boosterdose_admin_app/pubspec.yaml" ]; then
+            APP_DIR="boosterdose_admin_app"
+          else
+            echo "❌ Error: pubspec.yaml not found!"
+            exit 1
+          fi
+          echo "APP_DIR=$APP_DIR" >> $GITHUB_ENV
+          
+          # Extract version from pubspec.yaml
+          VERSION=$(grep '^version:' "$APP_DIR/pubspec.yaml" | sed 's/version: //g' | tr -d '\r')
+          VERSION_NAME=$(echo "$VERSION" | cut -d'+' -f1)
+          VERSION_CODE=$(echo "$VERSION" | cut -d'+' -f2)
+          
+          # Determine release tag
+          if [ -n "${{ github.event.inputs.tag_name }}" ]; then
+            RELEASE_TAG="${{ github.event.inputs.tag_name }}"
+          elif [ -n "${{ github.ref_name }}" ] && [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            RELEASE_TAG="${{ github.ref_name }}"
+          else
+            RELEASE_TAG="v$VERSION_NAME"
+          fi
+
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+          echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
+
+          echo "App directory: $APP_DIR"
+          echo "Version: $VERSION ($VERSION_NAME, code: $VERSION_CODE)"
+          echo "Release Tag: $RELEASE_TAG"
+
+      - name: 🩺 Flutter Doctor
+        working-directory: ${{ env.APP_DIR }}
+        run: flutter doctor -v
+
+      - name: 📦 Install Flutter Dependencies
+        working-directory: ${{ env.APP_DIR }}
+        run: flutter pub get
+
+      - name: 🔎 Analyze Code
+        working-directory: ${{ env.APP_DIR }}
+        run: flutter analyze --no-fatal-infos lib/
+
+      - name: 📱 Build Universal Release APK
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_apk == 'true' }}
+        working-directory: ${{ env.APP_DIR }}
+        run: flutter build apk --release
+
+      - name: 📱 Build Split-per-ABI Release APKs
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_apk == 'true' }}
+        working-directory: ${{ env.APP_DIR }}
+        run: flutter build apk --split-per-abi --release
+
+      - name: 📦 Build Release AppBundle (AAB)
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_aab == 'true' }}
+        working-directory: ${{ env.APP_DIR }}
+        run: flutter build appbundle --release
+
+      - name: 📂 Organize & Rename Release Artifacts
+        run: |
+          mkdir -p release-assets
+          
+          # Universal APK
+          if [ -f "${{ env.APP_DIR }}/build/app/outputs/flutter-apk/app-release.apk" ]; then
+            cp "${{ env.APP_DIR }}/build/app/outputs/flutter-apk/app-release.apk" "release-assets/BoosterDose-Admin-${{ env.RELEASE_TAG }}-universal.apk"
+          fi
+          
+          # Split APKs (arm64, arm-v7a, x86_64)
+          if [ -f "${{ env.APP_DIR }}/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk" ]; then
+            cp "${{ env.APP_DIR }}/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk" "release-assets/BoosterDose-Admin-${{ env.RELEASE_TAG }}-arm64-v8a.apk"
+          fi
+          if [ -f "${{ env.APP_DIR }}/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk" ]; then
+            cp "${{ env.APP_DIR }}/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk" "release-assets/BoosterDose-Admin-${{ env.RELEASE_TAG }}-armeabi-v7a.apk"
+          fi
+          
+          # AppBundle
+          if [ -f "${{ env.APP_DIR }}/build/app/outputs/bundle/release/app-release.aab" ]; then
+            cp "${{ env.APP_DIR }}/build/app/outputs/bundle/release/app-release.aab" "release-assets/BoosterDose-Admin-${{ env.RELEASE_TAG }}.aab"
+          fi
+
+          # Generate SHA256 Checksums
+          cd release-assets
+          sha256sum * > SHA256SUMS.txt
+          cd ..
+          
+          echo "Generated release artifacts:"
+          ls -lh release-assets
+
+      - name: 📤 Upload Build Artifacts (Actions Storage)
+        uses: actions/upload-artifact@v4
+        with:
+          name: booster-dose-admin-${{ env.RELEASE_TAG }}-build
+          path: release-assets/
+          retention-days: 30
+
+      - name: 🚀 Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: ${{ startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name != '') }}
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: "BoosterDose Admin ${{ env.RELEASE_TAG }}"
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+          files: release-assets/*
+          body: |
+            ## 🚀 BoosterDose Admin App (${{ env.RELEASE_TAG }})
+
+            ### 📦 Download Packages
+            - **Universal APK** (All Android devices): `BoosterDose-Admin-${{ env.RELEASE_TAG }}-universal.apk`
+            - **ARM64 APK** (Modern Android devices): `BoosterDose-Admin-${{ env.RELEASE_TAG }}-arm64-v8a.apk`
+            - **ARMv7 APK** (Older 32-bit Android devices): `BoosterDose-Admin-${{ env.RELEASE_TAG }}-armeabi-v7a.apk`
+            - **Google Play AppBundle**: `BoosterDose-Admin-${{ env.RELEASE_TAG }}.aab`
+
+            ### 🔐 File Integrity Checksums
+            See attached `SHA256SUMS.txt` to verify file integrity.
+
+            ### ✨ Key Features
+            - Admin Dashboard & Live Order Management
+            - Abandoned Cart Lead Capture & Recovery
+            - Section & Hero Banner Manager
+            - Push Notifications & Battery Optimization Background Sync
+            - Camera & Gallery Book Cover Uploads
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
