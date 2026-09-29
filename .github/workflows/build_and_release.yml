@@ -60,6 +60,10 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: 📱 Accept Android SDK Licenses
+        run: |
+          yes | sdkmanager --licenses || true
+
       - name: 🔍 Detect App Directory & Extract Version
         id: app_info
         run: |
