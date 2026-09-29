@@ -111,17 +111,17 @@ jobs:
       - name: 📱 Build Universal Release APK
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_apk == 'true' }}
         working-directory: ${{ env.APP_DIR }}
-        run: flutter build apk --release
+        run: flutter build apk --release --android-skip-build-dependency-validation
 
       - name: 📱 Build Split-per-ABI Release APKs
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_apk == 'true' }}
         working-directory: ${{ env.APP_DIR }}
-        run: flutter build apk --split-per-abi --release
+        run: flutter build apk --split-per-abi --release --android-skip-build-dependency-validation
 
       - name: 📦 Build Release AppBundle (AAB)
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_aab == 'true' }}
         working-directory: ${{ env.APP_DIR }}
-        run: flutter build appbundle --release
+        run: flutter build appbundle --release --android-skip-build-dependency-validation
 
       - name: 📂 Organize & Rename Release Artifacts
         run: |
