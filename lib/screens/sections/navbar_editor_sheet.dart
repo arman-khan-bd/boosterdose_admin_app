@@ -31,6 +31,7 @@ class NavbarEditorSheet extends StatefulWidget {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => NavbarEditorSheet(
         navbarSection: navbar,
@@ -259,14 +260,24 @@ class _NavbarEditorSheetState extends State<NavbarEditorSheet> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.92,
-      decoration: const BoxDecoration(
-        color: AppTheme.bgDark,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        children: [
+    final mediaQuery = MediaQuery.of(context);
+    final bottomInset = mediaQuery.viewInsets.bottom;
+    final screenHeight = mediaQuery.size.height;
+    final targetHeight = screenHeight * 0.92;
+    final availableHeight = (targetHeight - bottomInset).clamp(280.0, targetHeight);
+
+    return AnimatedPadding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOut,
+      child: Container(
+        height: availableHeight,
+        decoration: const BoxDecoration(
+          color: AppTheme.bgDark,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
           // Drag handle
           Center(
             child: Container(
@@ -402,11 +413,13 @@ class _NavbarEditorSheetState extends State<NavbarEditorSheet> with SingleTicker
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildNavbarTab() {
     return SingleChildScrollView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -549,6 +562,7 @@ class _NavbarEditorSheetState extends State<NavbarEditorSheet> with SingleTicker
 
   Widget _buildNoticeBarTab() {
     return SingleChildScrollView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -692,6 +706,7 @@ class _NavbarEditorSheetState extends State<NavbarEditorSheet> with SingleTicker
         TextField(
           controller: controller,
           maxLines: maxLines,
+          scrollPadding: const EdgeInsets.only(bottom: 80),
           style: const TextStyle(color: Colors.white, fontSize: 13.5),
           decoration: InputDecoration(
             hintText: hint,

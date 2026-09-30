@@ -27,6 +27,7 @@ class ReviewEditDialog extends StatefulWidget {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => ReviewEditDialog(
         review: review,
@@ -239,18 +240,27 @@ class _ReviewEditDialogState extends State<ReviewEditDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final bottomInset = mediaQuery.viewInsets.bottom;
+    final screenHeight = mediaQuery.size.height;
+    final targetHeight = screenHeight * 0.92;
+    final availableHeight = (targetHeight - bottomInset).clamp(280.0, targetHeight);
     final bookProvider = Provider.of<BookProvider>(context);
     final isEditing = widget.review != null;
     final isPending = widget.review != null && !widget.review!.isActive;
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.92,
-      decoration: const BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        children: [
+    return AnimatedPadding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOut,
+      child: Container(
+        height: availableHeight,
+        decoration: const BoxDecoration(
+          color: AppTheme.surfaceDark,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
           // Header Bar
           _buildHeader(isEditing, isPending),
 
@@ -259,6 +269,7 @@ class _ReviewEditDialogState extends State<ReviewEditDialog> {
           // Scrollable Form Body
           Expanded(
             child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Form(
                 key: _formKey,
@@ -470,8 +481,9 @@ class _ReviewEditDialogState extends State<ReviewEditDialog> {
           _buildBottomActionBar(isPending),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildHeader(bool isEditing, bool isPending) {
     return Container(

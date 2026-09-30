@@ -26,6 +26,7 @@ class HeroEditorSheet extends StatefulWidget {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => HeroEditorSheet(hero: hero, books: sp.books),
     );
@@ -190,14 +191,24 @@ class _HeroEditorSheetState extends State<HeroEditorSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.92,
-      decoration: const BoxDecoration(
-        color: AppTheme.bgDark,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        children: [
+    final mediaQuery = MediaQuery.of(context);
+    final bottomInset = mediaQuery.viewInsets.bottom;
+    final screenHeight = mediaQuery.size.height;
+    final targetHeight = screenHeight * 0.92;
+    final availableHeight = (targetHeight - bottomInset).clamp(280.0, targetHeight);
+
+    return AnimatedPadding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOut,
+      child: Container(
+        height: availableHeight,
+        decoration: const BoxDecoration(
+          color: AppTheme.bgDark,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
           // Drag handle & header
           Center(
             child: Container(
@@ -302,6 +313,7 @@ class _HeroEditorSheetState extends State<HeroEditorSheet> {
           // Slide editor content
           Expanded(
             child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.all(18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -408,8 +420,9 @@ class _HeroEditorSheetState extends State<HeroEditorSheet> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildImageUploadCard({
     required String label,
@@ -514,6 +527,7 @@ class _HeroEditorSheetState extends State<HeroEditorSheet> {
         const SizedBox(height: 6),
         TextFormField(
           initialValue: value,
+          scrollPadding: const EdgeInsets.only(bottom: 80),
           style: const TextStyle(color: Colors.white, fontSize: 13.5),
           onChanged: onChanged,
           decoration: InputDecoration(

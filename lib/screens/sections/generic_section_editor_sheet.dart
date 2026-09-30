@@ -18,6 +18,7 @@ class GenericSectionEditorSheet extends StatefulWidget {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => GenericSectionEditorSheet(section: section),
     );
@@ -217,17 +218,26 @@ class _GenericSectionEditorSheetState extends State<GenericSectionEditorSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final bottomInset = mediaQuery.viewInsets.bottom;
+    final screenHeight = mediaQuery.size.height;
+    final targetHeight = screenHeight * 0.90;
+    final availableHeight = (targetHeight - bottomInset).clamp(280.0, targetHeight);
     final color = _sectionColor;
     final fields = _fieldsForSection;
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.90,
-      decoration: const BoxDecoration(
-        color: AppTheme.bgDark,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        children: [
+    return AnimatedPadding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOut,
+      child: Container(
+        height: availableHeight,
+        decoration: const BoxDecoration(
+          color: AppTheme.bgDark,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
           // Handle
           Center(
             child: Container(
@@ -265,6 +275,7 @@ class _GenericSectionEditorSheetState extends State<GenericSectionEditorSheet> {
 
           Expanded(
             child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.all(18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -402,8 +413,9 @@ class _GenericSectionEditorSheetState extends State<GenericSectionEditorSheet> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildTextField(String label, TextEditingController controller, IconData icon, {int maxLines = 1}) {
     return Column(
@@ -414,6 +426,7 @@ class _GenericSectionEditorSheetState extends State<GenericSectionEditorSheet> {
         TextField(
           controller: controller,
           maxLines: maxLines,
+          scrollPadding: const EdgeInsets.only(bottom: 80),
           style: const TextStyle(color: Colors.white, fontSize: 13.5),
           decoration: InputDecoration(
             prefixIcon: Icon(icon, color: AppTheme.primary, size: 18),
@@ -437,6 +450,7 @@ class _GenericSectionEditorSheetState extends State<GenericSectionEditorSheet> {
         TextFormField(
           initialValue: field.initialValue,
           maxLines: field.maxLines,
+          scrollPadding: const EdgeInsets.only(bottom: 80),
           style: const TextStyle(color: Colors.white, fontSize: 13.5),
           onChanged: (v) => setState(() => _editableContent[field.key] = v),
           decoration: InputDecoration(
