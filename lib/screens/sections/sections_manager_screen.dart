@@ -53,6 +53,7 @@ class _SectionsManagerScreenState extends State<SectionsManagerScreen> {
       case 'faq': return AppTheme.accentCyan;
       case 'footer': return AppTheme.accentRose;
       case 'book_about': return AppTheme.accentAmber;
+      case 'floating_buttons': return AppTheme.accentEmerald;
       default: return AppTheme.primary;
     }
   }
@@ -68,6 +69,7 @@ class _SectionsManagerScreenState extends State<SectionsManagerScreen> {
       case 'faq': return Icons.help_outline_rounded;
       case 'footer': return Icons.web_asset_rounded;
       case 'book_about': return Icons.info_outline_rounded;
+      case 'floating_buttons': return Icons.contact_phone_rounded;
       default: return Icons.widgets_outlined;
     }
   }
@@ -81,9 +83,44 @@ class _SectionsManagerScreenState extends State<SectionsManagerScreen> {
       case 'reviews': return 'রিভিউ ও ট্রাস্ট';
       case 'bookshelf': return 'বই ক্যাটালগ';
       case 'faq': return 'প্রশ্নোত্তর (FAQ)';
-      case 'footer': return 'ফুটার সেকশন';
-      case 'book_about': return 'বই পরিচিতি';
+      case 'footer': return 'ফুটার ও সাপোর্ট তথ্য';
+      case 'book_about': return 'বই পরিচিতি ও বৈশিষ্ট্য';
+      case 'floating_buttons': return 'কল ও হোয়াটসঅ্যাপ বাটন';
       default: return key.toUpperCase();
+    }
+  }
+
+  String? _contentSnippet(SectionModel sec) {
+    final c = sec.content;
+    switch (sec.sectionKey) {
+      case 'footer':
+        final brand = c['brand_title'] ?? c['brand_subtitle'];
+        final phone = c['support_phone'] ?? c['phone'];
+        if (brand != null && phone != null) return '$brand • $phone';
+        return brand?.toString() ?? phone?.toString() ?? c['copyright']?.toString();
+      case 'floating_buttons':
+        final p = c['phone'] ?? '';
+        final w = c['whatsapp'] ?? '';
+        if (p.isNotEmpty || w.isNotEmpty) return 'ফোন: $p | WA: $w';
+        return null;
+      case 'bookshelf':
+        return c['section_title']?.toString() ?? c['section_subtitle']?.toString();
+      case 'book_about':
+        return c['section_title']?.toString() ?? c['section_badge']?.toString();
+      case 'author':
+        final name = c['author_name'];
+        final title = c['author_title'];
+        if (name != null && title != null) return '$name ($title)';
+        return name?.toString();
+      case 'reviews':
+        return c['section_title']?.toString() ?? c['dispatch_title']?.toString();
+      case 'hero':
+        if (sec.heroSlides.isNotEmpty) {
+          return sec.heroSlides.first['title']?.toString();
+        }
+        return null;
+      default:
+        return c['section_title']?.toString() ?? c['title']?.toString();
     }
   }
 
@@ -293,6 +330,15 @@ class _SectionsManagerScreenState extends State<SectionsManagerScreen> {
                               'key: ${sec.sectionKey} • #${sec.sortOrder}',
                               style: const TextStyle(color: Color(0xFF64748B), fontSize: 11),
                             ),
+                            if (_contentSnippet(sec) != null && _contentSnippet(sec)!.trim().isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                _contentSnippet(sec)!,
+                                style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11, fontStyle: FontStyle.italic),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ],
                         ),
                       ),

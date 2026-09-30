@@ -5,7 +5,9 @@ import 'package:provider/provider.dart';
 import '../config/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/dashboard_provider.dart';
+import '../providers/notification_provider.dart';
 import '../widgets/metric_card.dart';
+import '../widgets/notification_dropdown_modal.dart';
 import '../widgets/status_badge.dart';
 import 'abandoned_orders/abandoned_orders_screen.dart';
 import 'books/books_list_screen.dart';
@@ -71,6 +73,42 @@ class _OverviewScreenState extends State<OverviewScreen> {
           ],
         ),
         actions: [
+          // Notification message dropdown button with live unread badge
+          Consumer<NotificationProvider>(
+            builder: (ctx, np, _) {
+              final unread = np.totalUnread;
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+                    tooltip: 'বিজ্ঞপ্তি ও বার্তা ড্রপডাউন',
+                    onPressed: () => NotificationDropdownModal.show(context),
+                  ),
+                  if (unread > 0)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentRose,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '$unread',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Colors.white),
             onPressed: () => dashboard.fetchDashboardData(),

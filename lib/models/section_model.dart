@@ -86,11 +86,20 @@ class SectionModel {
     if (content['image_url'] != null && content['image_url'].toString().trim().isNotEmpty) {
       return content['image_url'].toString();
     }
+    if (sectionKey == 'hero' && heroSlides.isNotEmpty) {
+      final banner = heroSlides.first['banner_image'] ?? heroSlides.first['mobile_image_url'];
+      if (banner != null && banner.toString().trim().isNotEmpty) {
+        return banner.toString();
+      }
+    }
     if (sectionKey == 'navbar' && content['logo_url'] != null) {
       return content['logo_url'].toString();
     }
     if (sectionKey == 'author' && content['author_image'] != null) {
       return content['author_image'].toString();
+    }
+    if (sectionKey == 'footer' && content['payment_banner_url'] != null) {
+      return content['payment_banner_url'].toString();
     }
     if (defaultImage != null && defaultImage!.trim().isNotEmpty) return defaultImage;
     return null;

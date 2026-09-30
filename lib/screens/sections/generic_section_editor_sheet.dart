@@ -45,6 +45,38 @@ class _GenericSectionEditorSheetState extends State<GenericSectionEditorSheet> {
     _nameController = TextEditingController(text: widget.section.name);
     _imageUrlController = TextEditingController(text: widget.section.imageUrl ?? widget.section.content['image_url']?.toString() ?? '');
     _editableContent = Map<String, dynamic>.from(widget.section.content);
+
+    // Pre-seed default website content if missing so all fields are immediately visible and editable
+    final k = widget.section.sectionKey;
+    if (k == 'footer') {
+      _editableContent.putIfAbsent('brand_title', () => 'অনন্যা বাংলা একাডেমি');
+      _editableContent.putIfAbsent('brand_subtitle', () => 'শব্দতরু বাংলা প্রকাশনী');
+      _editableContent.putIfAbsent('description', () => 'বাংলাদেশের এইচএসসি ও ভর্তি পরীক্ষার্থীদের বাংলা ১ম ও ২য় পত্রের নিখুঁত প্রস্তুতিতে দেশের বিশ্বস্ত শিক্ষা প্রকাশনা।');
+      _editableContent.putIfAbsent('support_phone', () => _editableContent['phone'] ?? '০১৯৬০-৭৪২৫৩৬ (সকাল ৯টা - রাত ১০টা)');
+      _editableContent.putIfAbsent('support_email', () => _editableContent['contact_email'] ?? _editableContent['email'] ?? 'support@ananyabangla.com');
+      _editableContent.putIfAbsent('address', () => 'বাংলাবাজার, ঢাকা-১১০০, বাংলাদেশ');
+      _editableContent.putIfAbsent('copyright', () => _editableContent['copyright_text'] ?? '© ২০২৫-২০২৬ অনন্যা বাংলা একাডেমি ও শব্দতরু প্রকাশনী। সর্বস্বত্ব সংরক্ষিত।');
+    } else if (k == 'floating_buttons') {
+      _editableContent.putIfAbsent('phone', () => '+880 1960-742536');
+      _editableContent.putIfAbsent('whatsapp', () => '+8801960742536');
+      _editableContent.putIfAbsent('whatsapp_message', () => 'হ্যালো, আমি বাংলা ২য় পত্র বই সম্পর্কে জানতে চাই।');
+    } else if (k == 'bookshelf') {
+      _editableContent.putIfAbsent('section_badge', () => 'আমাদের সকল বই');
+      _editableContent.putIfAbsent('section_title', () => 'অনন্যা বাংলা বুকশেলফ');
+      _editableContent.putIfAbsent('section_subtitle', () => 'আপনার পছন্দমতো যেকোনো বই নির্বাচন করুন। প্রতিটি বইয়ের বিস্তারিত বিবরণ ও ডেমো পাতা দেখার সুবিধা রয়েছে।');
+    } else if (k == 'book_about') {
+      _editableContent.putIfAbsent('section_badge', () => 'বই পরিচিতি ও বিশেষত্ব');
+      _editableContent.putIfAbsent('section_title', () => 'কেন সুমন স্যারের বুস্টার ডোজ বইগুলো শিক্ষার্থীদের ১ম পছন্দ?');
+      _editableContent.putIfAbsent('section_subtitle', () => 'মুখস্থ নির্ভরতা দূর করে সহজে বাংলা ২য় পত্রে পূর্ণাঙ্গ নম্বর নিশ্চিত করতে ১৬ বছরের শিক্ষকতার অভিজ্ঞতায় সাজানো অনন্য মাস্টারবুক।');
+      _editableContent.putIfAbsent('quote_badge', () => 'বোর্ড স্ট্যান্ডার্ড কারিকুলাম');
+      _editableContent.putIfAbsent('quote_title', () => 'শতভাগ রুলস মুখস্থহীন টেকনিক্যাল সলভিং');
+      _editableContent.putIfAbsent('quote_text', () => 'শত শত খটমটে ব্যাকরণ নিয়ম মুখস্থ না করেই প্রশ্ন দেখে সঠিক উত্তর লেখার জাদুকরী টেকনিক ও অভিনব শর্টকাট।');
+      _editableContent.putIfAbsent('cta_text', () => 'বইগুলোর তালিকা দেখুন');
+    } else if (k == 'dispatch' || k == 'parcel') {
+      _editableContent.putIfAbsent('section_title', () => 'সারা দেশে দ্রুততম হোম ডেলিভারি');
+      _editableContent.putIfAbsent('section_subtitle', () => 'অর্ডার করার ৪৮ থেকে ৭২ ঘণ্টার মধ্যে আপনার হাতে বই পৌঁছে যাবে ইনশাআল্লাহ।');
+      _editableContent.putIfAbsent('dispatch_title', () => 'নিরাপদ প্যাকেজিং ও দ্রুততম কুরিয়ার');
+    }
   }
 
   @override
@@ -119,6 +151,28 @@ class _GenericSectionEditorSheetState extends State<GenericSectionEditorSheet> {
       updatedContent['image_url'] = _imageUrlController.text.trim();
     }
 
+    // Bidirectional sync for website template aliases
+    if (widget.section.sectionKey == 'footer') {
+      final copy = updatedContent['copyright'] ?? updatedContent['copyright_text'];
+      if (copy != null && copy.toString().trim().isNotEmpty) {
+        updatedContent['copyright'] = copy;
+        updatedContent['copyright_text'] = copy;
+      }
+      final email = updatedContent['support_email'] ?? updatedContent['contact_email'];
+      if (email != null && email.toString().trim().isNotEmpty) {
+        updatedContent['support_email'] = email;
+        updatedContent['contact_email'] = email;
+      }
+      final phone = updatedContent['support_phone'] ?? updatedContent['phone'];
+      if (phone != null && phone.toString().trim().isNotEmpty) {
+        updatedContent['support_phone'] = phone;
+        updatedContent['phone'] = phone;
+      }
+      if (updatedContent['brand_subtitle'] != null && updatedContent['footer_tagline'] == null) {
+        updatedContent['footer_tagline'] = updatedContent['brand_subtitle'];
+      }
+    }
+
     final ok = await sp.updateSection(widget.section.id, {
       'name': _nameController.text.trim(),
       'is_active': _isActive,
@@ -154,6 +208,9 @@ class _GenericSectionEditorSheetState extends State<GenericSectionEditorSheet> {
       case 'notice_bar': return AppTheme.accentAmber;
       case 'author': return AppTheme.accentPurple;
       case 'reviews': return AppTheme.accentBlue;
+      case 'bookshelf': return const Color(0xFF10B981);
+      case 'book_about': return const Color(0xFFF59E0B);
+      case 'floating_buttons': return const Color(0xFF22C55E);
       case 'faq': return AppTheme.accentCyan;
       case 'footer': return AppTheme.accentRose;
       default: return AppTheme.primary;
@@ -168,52 +225,135 @@ class _GenericSectionEditorSheetState extends State<GenericSectionEditorSheet> {
       case 'author': return Icons.person_outline_rounded;
       case 'reviews': return Icons.star_outline_rounded;
       case 'bookshelf': return Icons.book_outlined;
+      case 'book_about': return Icons.auto_stories_rounded;
+      case 'floating_buttons': return Icons.touch_app_rounded;
       case 'faq': return Icons.help_outline_rounded;
       case 'footer': return Icons.web_asset_rounded;
       default: return Icons.widgets_outlined;
     }
   }
 
+  String _formatFieldKey(String key) {
+    return key
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
+        .join(' ');
+  }
+
   List<_EditableField> get _fieldsForSection {
-    final c = widget.section.content;
+    final c = _editableContent;
+    final List<_EditableField> fields = [];
+    final handledKeys = <String>{'image_url', 'slides', 'features', 'highlights'};
+
     switch (widget.section.sectionKey) {
+      case 'footer':
+        fields.addAll([
+          _EditableField('brand_title', 'ব্র্যান্ড / একাডেমি নাম', Icons.business_rounded, c['brand_title']?.toString() ?? 'অনন্যা বাংলা একাডেমি'),
+          _EditableField('brand_subtitle', 'সাব-টাইটেল / প্রকাশনী', Icons.subtitles_rounded, c['brand_subtitle']?.toString() ?? 'শব্দতরু বাংলা প্রকাশনী'),
+          _EditableField('description', 'ফুটার বিবরণ ও পরিচিতি', Icons.description_outlined, c['description']?.toString() ?? '', maxLines: 4),
+          _EditableField('support_phone', 'যোগাযোগ ও হেল্পলাইন ফোন', Icons.phone_in_talk_rounded, c['support_phone']?.toString() ?? c['phone']?.toString() ?? ''),
+          _EditableField('support_email', 'সাপোর্ট ইমেইল', Icons.email_outlined, c['support_email']?.toString() ?? c['contact_email']?.toString() ?? c['email']?.toString() ?? ''),
+          _EditableField('address', 'অফিস / শোরুম ঠিকানা', Icons.location_on_outlined, c['address']?.toString() ?? '', maxLines: 2),
+          _EditableField('copyright', 'কপিরাইট টেক্সট', Icons.copyright_rounded, c['copyright']?.toString() ?? c['copyright_text']?.toString() ?? '', maxLines: 2),
+        ]);
+        handledKeys.addAll(['brand_title', 'brand_subtitle', 'description', 'support_phone', 'phone', 'support_email', 'contact_email', 'email', 'address', 'copyright', 'copyright_text', 'footer_tagline']);
+        break;
+
+      case 'floating_buttons':
+        fields.addAll([
+          _EditableField('phone', 'হেল্পলাইন সরাসরি কল নম্বর', Icons.phone_in_talk_rounded, c['phone']?.toString() ?? ''),
+          _EditableField('whatsapp', 'হোয়াটসঅ্যাপ নম্বর (কান্ট্রি কোড সহ)', Icons.chat_bubble_outline_rounded, c['whatsapp']?.toString() ?? ''),
+          _EditableField('whatsapp_message', 'হোয়াটসঅ্যাপ প্রিসেট মেসেজ', Icons.message_outlined, c['whatsapp_message']?.toString() ?? '', maxLines: 3),
+        ]);
+        handledKeys.addAll(['phone', 'whatsapp', 'whatsapp_message']);
+        break;
+
+      case 'bookshelf':
+        fields.addAll([
+          _EditableField('section_badge', 'ব্যাজ টেক্সট', Icons.stars_rounded, c['section_badge']?.toString() ?? 'আমাদের সকল বই'),
+          _EditableField('section_title', 'বুকশেলফ শিরোনাম', Icons.title_rounded, c['section_title']?.toString() ?? 'অনন্যা বাংলা বুকশেলফ'),
+          _EditableField('section_subtitle', 'সাব-টাইটেল / বিবরণ', Icons.subtitles_rounded, c['section_subtitle']?.toString() ?? '', maxLines: 3),
+        ]);
+        handledKeys.addAll(['section_badge', 'section_title', 'section_subtitle']);
+        break;
+
+      case 'book_about':
+        fields.addAll([
+          _EditableField('section_badge', 'ব্যাজ টেক্সট', Icons.stars_rounded, c['section_badge']?.toString() ?? 'বই পরিচিতি ও বিশেষত্ব'),
+          _EditableField('section_title', 'বই পরিচিতি শিরোনাম', Icons.title_rounded, c['section_title']?.toString() ?? 'কেন সুমন স্যারের বুস্টার ডোজ বইগুলো শিক্ষার্থীদের ১ম পছন্দ?'),
+          _EditableField('section_subtitle', 'সাবটাইটেল / সারসংক্ষেপ', Icons.subtitles_rounded, c['section_subtitle']?.toString() ?? '', maxLines: 3),
+          _EditableField('quote_badge', 'কোটেশন ব্যাজ', Icons.bookmark_border_rounded, c['quote_badge']?.toString() ?? ''),
+          _EditableField('quote_title', 'কোটেশন টাইটেল', Icons.format_quote_rounded, c['quote_title']?.toString() ?? ''),
+          _EditableField('quote_text', 'কোটেশন টেক্সট', Icons.notes_rounded, c['quote_text']?.toString() ?? '', maxLines: 2),
+          _EditableField('cta_text', 'বাটন টেক্সট', Icons.touch_app_outlined, c['cta_text']?.toString() ?? ''),
+        ]);
+        handledKeys.addAll(['section_badge', 'section_title', 'section_subtitle', 'quote_badge', 'quote_title', 'quote_text', 'cta_text']);
+        break;
+
       case 'author':
-        return [
+        fields.addAll([
           _EditableField('author_name', 'লেখকের নাম', Icons.person_outline_rounded, c['author_name']?.toString() ?? ''),
           _EditableField('author_title', 'পদবি / টাইটেল', Icons.badge_outlined, c['author_title']?.toString() ?? ''),
           _EditableField('author_bio', 'বায়ো / পরিচিতি', Icons.info_outline_rounded, c['author_bio']?.toString() ?? '', maxLines: 4),
           _EditableField('author_quote', 'বিখ্যাত উক্তি', Icons.format_quote_rounded, c['author_quote']?.toString() ?? '', maxLines: 2),
-        ];
+        ]);
+        handledKeys.addAll(['author_name', 'author_title', 'author_bio', 'author_quote']);
+        break;
+
       case 'reviews':
-        return [
+        fields.addAll([
           _EditableField('section_title', 'সেকশন টাইটেল', Icons.title_rounded, c['section_title']?.toString() ?? 'হাজারো শিক্ষার্থীর বিশ্বস্ত সঙ্গী'),
           _EditableField('section_subtitle', 'সাবটাইটেল', Icons.subtitles_rounded, c['section_subtitle']?.toString() ?? '', maxLines: 2),
           _EditableField('section_badge', 'ব্যাজ টেক্সট', Icons.stars_rounded, c['section_badge']?.toString() ?? ''),
           _EditableField('dispatch_title', 'ডেলিভারি ব্যানার টাইটেল', Icons.local_shipping_outlined, c['dispatch_title']?.toString() ?? '', maxLines: 2),
-        ];
+        ]);
+        handledKeys.addAll(['section_title', 'section_subtitle', 'section_badge', 'dispatch_title']);
+        break;
+
+      case 'dispatch':
+      case 'parcel':
+        fields.addAll([
+          _EditableField('section_title', 'ডেলিভারি শিরোনাম', Icons.title_rounded, c['section_title']?.toString() ?? 'সারা দেশে দ্রুততম হোম ডেলিভারি'),
+          _EditableField('section_subtitle', 'সাবটাইটেল', Icons.subtitles_rounded, c['section_subtitle']?.toString() ?? '', maxLines: 2),
+          _EditableField('dispatch_title', 'প্যাকেজিং ব্যানার শিরোনাম', Icons.local_shipping_outlined, c['dispatch_title']?.toString() ?? '', maxLines: 2),
+        ]);
+        handledKeys.addAll(['section_title', 'section_subtitle', 'dispatch_title']);
+        break;
+
       case 'faq':
-        return [
+        fields.addAll([
           _EditableField('section_title', 'সেকশন টাইটেল', Icons.title_rounded, c['section_title']?.toString() ?? ''),
           _EditableField('section_subtitle', 'সাবটাইটেল', Icons.subtitles_rounded, c['section_subtitle']?.toString() ?? '', maxLines: 2),
-        ];
-      case 'book_about':
-        return [
-          _EditableField('section_title', 'বই পরিচিতি শিরোনাম', Icons.title_rounded, c['section_title']?.toString() ?? ''),
-          _EditableField('description', 'বইয়ের বিবরণ', Icons.description_outlined, c['description']?.toString() ?? '', maxLines: 5),
-          _EditableField('section_badge', 'ব্যাজ টেক্সট', Icons.stars_rounded, c['section_badge']?.toString() ?? ''),
-        ];
-      case 'footer':
-        return [
-          _EditableField('copyright_text', 'কপিরাইট টেক্সট', Icons.copyright_rounded, c['copyright_text']?.toString() ?? ''),
-          _EditableField('footer_tagline', 'ফুটার ট্যাগলাইন', Icons.text_fields_rounded, c['footer_tagline']?.toString() ?? ''),
-          _EditableField('contact_email', 'যোগাযোগ ইমেইল', Icons.email_outlined, c['contact_email']?.toString() ?? ''),
-        ];
+        ]);
+        handledKeys.addAll(['section_title', 'section_subtitle']);
+        break;
+
       default:
-        return [
+        fields.addAll([
           _EditableField('section_title', 'সেকশন টাইটেল', Icons.title_rounded, c['section_title']?.toString() ?? ''),
           _EditableField('section_subtitle', 'সাবটাইটেল', Icons.subtitles_rounded, c['section_subtitle']?.toString() ?? '', maxLines: 2),
-        ];
+        ]);
+        handledKeys.addAll(['section_title', 'section_subtitle']);
+        break;
     }
+
+    // Dynamic fallback for any other non-nested fields present in content from the website
+    c.forEach((key, val) {
+      if (!handledKeys.contains(key) && val != null && (val is String || val is num || val is bool)) {
+        fields.add(
+          _EditableField(
+            key,
+            _formatFieldKey(key),
+            Icons.tune_rounded,
+            val.toString(),
+            maxLines: val.toString().length > 60 ? 3 : 1,
+          ),
+        );
+      }
+    });
+
+    return fields;
   }
 
   @override

@@ -8,6 +8,7 @@ import 'abandoned_orders/abandoned_orders_screen.dart';
 import 'books/books_list_screen.dart';
 import 'courier/courier_manager_screen.dart';
 import 'notifications/notification_manager_screen.dart';
+import 'orders/order_detail_screen.dart';
 import 'orders/orders_list_screen.dart';
 import 'overview_screen.dart';
 import 'profile/profile_screen.dart';
@@ -36,15 +37,100 @@ class _DashboardShellState extends State<DashboardShell> {
   @override
   void initState() {
     super.initState();
-    // Pre-fetch live notification counts and prompt permission settings on app open
+    // Start real-time live notification polling & listen for instant incoming orders / abandoned carts
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      Provider.of<NotificationProvider>(context, listen: false).fetchFeed(silent: true);
+      final np = Provider.of<NotificationProvider>(context, listen: false);
+      np.startPolling();
+      np.addListener(_onNotificationUpdate);
 
       // Only check and show permissions modal on first launch after install
       // and ONLY if any required permission is not yet granted
       _checkAndPromptStartupPermissions();
     });
+  }
+
+  @override
+  void dispose() {
+    try {
+      final np = Provider.of<NotificationProvider>(context, listen: false);
+      np.removeListener(_onNotificationUpdate);
+      np.stopPolling();
+    } catch (_) {}
+    super.dispose();
+  }
+
+  void _onNotificationUpdate() {
+    if (!mounted) return;
+    final np = Provider.of<NotificationProvider>(context, listen: false);
+    final item = np.latestArrival;
+    if (item != null) {
+      np.clearLatestArrival();
+
+      final isOrder = item.type == 'order';
+      final title = isOrder ? '🔔 নতুন অর্ডার এসেছে!' : '🛒 নতুন পরিত্যক্ত কার্ট এসেছে!';
+      final sub = item.customerName.isNotEmpty
+          ? '${item.customerName} • ${item.customerPhone}'
+          : 'ফোন: ${item.customerPhone}';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: isOrder ? const Color(0xFF064E3B) : const Color(0xFF881337),
+          duration: const Duration(seconds: 6),
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(color: isOrder ? AppTheme.primary : AppTheme.accentRose, width: 1.5),
+          ),
+          content: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(
+                  color: Colors.black26,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isOrder ? Icons.shopping_bag_rounded : Icons.remove_shopping_cart_rounded,
+                  color: isOrder ? AppTheme.primary : AppTheme.accentRose,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white)),
+                    const SizedBox(height: 2),
+                    Text(sub, style: const TextStyle(fontSize: 11.5, color: Color(0xFFE2E8F0)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          action: SnackBarAction(
+            label: 'দেখুন',
+            textColor: Colors.white,
+            onPressed: () {
+              if (item.type == 'order' && item.orderId != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => OrderDetailScreen(orderId: item.orderId!)),
+                );
+              } else if (item.type == 'abandoned_order') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AbandonedOrdersScreen()),
+                );
+              }
+            },
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _checkAndPromptStartupPermissions() async {
