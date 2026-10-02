@@ -100,4 +100,20 @@ class AbandonedOrderModel {
     final now = dt.isUtc ? DateTime.now().toUtc() : DateTime.now();
     return now.difference(dt).inMinutes;
   }
+
+  /// Formatted lead text (name, phone, address, book, amount)
+  String get copyableLeadData {
+    final sb = StringBuffer();
+    sb.writeln('নাম: $customerName');
+    sb.writeln('ফোন: $customerPhone');
+    if (deliveryAddress != null && deliveryAddress!.trim().isNotEmpty) {
+      sb.writeln('ঠিকানা: $deliveryAddress');
+    }
+    if (deliveryArea != null && deliveryArea!.trim().isNotEmpty) {
+      sb.writeln('এরিয়া: $deliveryArea');
+    }
+    sb.writeln('পণ্য: $bookTitle (x$quantity)');
+    sb.writeln('মূল্য: ৳${totalAmount.toStringAsFixed(0)}');
+    return sb.toString().trim();
+  }
 }

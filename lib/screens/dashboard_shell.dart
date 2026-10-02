@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/app_theme.dart';
 import '../providers/notification_provider.dart';
+import '../services/native_notification_service.dart';
 import '../services/permission_service.dart';
 import 'abandoned_orders/abandoned_orders_screen.dart';
 import 'books/books_list_screen.dart';
@@ -44,10 +45,50 @@ class _DashboardShellState extends State<DashboardShell> {
       np.startPolling();
       np.addListener(_onNotificationUpdate);
 
+      // Handle notification taps from Android system dropdown tray
+      NativeNotificationService.init(
+        onNotificationTapped: (type, payload) {
+          _handleNotificationRouting(type, payload);
+        },
+      );
+
+      // Check if launched directly from Android notification click
+      NativeNotificationService.getInitialNotification().then((data) {
+        if (data != null && mounted) {
+          final type = data['type']?.toString() ?? 'order';
+          final payload = data['payload']?.toString() ?? '';
+          _handleNotificationRouting(type, payload);
+        }
+      });
+
       // Only check and show permissions modal on first launch after install
       // and ONLY if any required permission is not yet granted
       _checkAndPromptStartupPermissions();
     });
+  }
+
+  void _handleNotificationRouting(String type, String payload) {
+    if (!mounted) return;
+    if (type == 'order') {
+      final orderId = int.tryParse(payload);
+      if (orderId != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => OrderDetailScreen(orderId: orderId)),
+        );
+      } else {
+        setState(() => _currentIndex = 1);
+      }
+    } else if (type == 'abandoned_order') {
+      setState(() => _currentIndex = 2);
+    } else if (type == 'review') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const ReviewsManagerScreen()),
+      );
+    } else {
+      setState(() => _currentIndex = 4);
+    }
   }
 
   @override

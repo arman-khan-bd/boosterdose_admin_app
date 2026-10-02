@@ -194,6 +194,7 @@ class ApiService {
             .map((e) => OrderModel.fromJson(e))
             .toList(),
         'security': data['security'] ?? {},
+        'courier_settings': data['courier_settings'] ?? {},
       };
     }
     throw ApiException(data['message'] ?? 'Failed to load order detail');

@@ -13,6 +13,7 @@ import 'providers/review_provider.dart';
 import 'providers/section_provider.dart';
 import 'screens/splash_screen.dart';
 import 'services/auth_service.dart';
+import 'services/native_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,6 +29,7 @@ void main() async {
   );
 
   await AuthService.init();
+  NativeNotificationService.init();
 
   runApp(const BoosterDoseAdminApp());
 }

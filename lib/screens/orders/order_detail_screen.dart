@@ -4,9 +4,11 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_theme.dart';
 import '../../models/order_model.dart';
+import '../../providers/courier_provider.dart';
 import '../../providers/order_provider.dart';
 import '../../services/api_service.dart';
 import '../../widgets/status_badge.dart';
+import '../courier/courier_manager_screen.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   final int orderId;
@@ -21,6 +23,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   OrderModel? _order;
   List<OrderModel> _customerHistory = [];
   Map<String, dynamic> _security = {};
+  Map<String, dynamic> _courierSettings = {};
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -28,6 +31,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   void initState() {
     super.initState();
     _loadDetail();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final cp = Provider.of<CourierProvider>(context, listen: false);
+      if (cp.settings == null) {
+        cp.fetchCourierSettings();
+      }
+    });
   }
 
   Future<void> _loadDetail() async {
@@ -42,6 +51,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         _order = res['order'];
         _customerHistory = res['customer_history'];
         _security = res['security'];
+        _courierSettings = res['courier_settings'] ?? {};
         _isLoading = false;
       });
     } catch (e) {
@@ -57,6 +67,32 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     }
+  }
+
+  void _copyToClipboard(String text, {String? successMessage}) {
+    Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle_rounded, color: AppTheme.accentEmerald, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                successMessage ?? 'কপি করা হয়েছে!',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF1E293B),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   void _showStatusDialog() {
@@ -158,12 +194,517 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
+  List<Map<String, String>> _getConfiguredCouriers() {
+    final list = <Map<String, String>>[];
+    final configuredRaw = _courierSettings['configured_couriers'];
+    if (configuredRaw is List && configuredRaw.isNotEmpty) {
+      for (final item in configuredRaw) {
+        if (item is Map) {
+          final id = item['id']?.toString() ?? '';
+          final name = item['name']?.toString() ?? id;
+          if (id.isNotEmpty) {
+            list.add({'id': id, 'name': name});
+          }
+        }
+      }
+    }
+
+    if (list.isEmpty) {
+      final cp = Provider.of<CourierProvider>(context, listen: false);
+      final s = cp.settings;
+      if (s != null) {
+        if (s.isSteadfastConfigured) {
+          list.add({'id': 'steadfast', 'name': 'Steadfast Courier (স্টেডফাস্ট)'});
+        }
+        if (s.isPathaoConfigured) {
+          list.add({'id': 'pathao', 'name': 'Pathao Courier (পাঠাও)'});
+        }
+        if (s.isRedxConfigured) {
+          list.add({'id': 'redx', 'name': 'RedX Courier (রেডেক্স)'});
+        }
+      }
+    }
+    return list;
+  }
+
+  void _showNoCourierConfiguredDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF131D2E),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Color(0xFF263345)),
+        ),
+        contentPadding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppTheme.accentAmber.withOpacity(0.15),
+                shape: BoxShape.circle,
+                border: Border.all(color: AppTheme.accentAmber.withOpacity(0.3)),
+              ),
+              child: const Icon(Icons.warning_amber_rounded, color: AppTheme.accentAmber, size: 40),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'কোনো কুরিয়ার এপিআই কনফিগার নেই',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'সরাসরি এক-ক্লিকে কুরিয়ারে বুকিং পাঠাতে Steadfast, Pathao অথবা RedX এর API Key ও Secret কনফিগার করা প্রয়োজন।',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13, height: 1.4),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFF334155)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text('বন্ধ করুন', style: TextStyle(color: Color(0xFF94A3B8))),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const CourierManagerScreen()),
+                      ).then((_) {
+                        _loadDetail();
+                        Provider.of<CourierProvider>(context, listen: false).fetchCourierSettings();
+                      });
+                    },
+                    icon: const Icon(Icons.settings, size: 16, color: Colors.black),
+                    label: const Text('সেটিংস', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConfirmItem(String label, String value, {bool highlight = false}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 95,
+          child: Text(
+            label,
+            style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              color: highlight ? AppTheme.primary : Colors.white,
+              fontSize: 12,
+              fontWeight: highlight ? FontWeight.bold : FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showCourierConfirmationDialog({
+    required BuildContext bottomSheetContext,
+    required String courierId,
+    required String courierName,
+    required String dispatchMode,
+    String? consignmentId,
+  }) async {
+    if (_order == null) return;
+    final o = _order!;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) {
+        bool isDialogSubmitting = false;
+
+        return StatefulBuilder(
+          builder: (dialogCtx, setDialogState) => AlertDialog(
+            backgroundColor: const Color(0xFF131D2E),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: const BorderSide(color: Color(0xFF263345)),
+            ),
+            titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            actionsPadding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.local_shipping_rounded, color: AppTheme.primary, size: 22),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'কুরিয়ার বুকিং নিশ্চয়তা',
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'আপনি কি নিশ্চিত যে নিচের অর্ডারের জন্য কুরিয়ারে বুকিং রিকোয়েস্ট পাঠাতে চান?',
+                    style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13, height: 1.4),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F172A),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFF263345)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildConfirmItem('অর্ডার নম্বর', '#${o.orderNumber}', highlight: true),
+                        const SizedBox(height: 8),
+                        _buildConfirmItem('কুরিয়ার সার্ভিস', courierName),
+                        const SizedBox(height: 8),
+                        _buildConfirmItem('বুকিং মোড', dispatchMode == 'api' ? 'স্বয়ংক্রিয় এপিআই (API)' : 'ম্যানুয়াল কোড'),
+                        const SizedBox(height: 8),
+                        _buildConfirmItem('গ্রাহকের নাম', o.customerName),
+                        const SizedBox(height: 8),
+                        _buildConfirmItem('ফোন নম্বর', o.customerPhone),
+                        const SizedBox(height: 8),
+                        _buildConfirmItem('ঠিকানা', o.deliveryAddress),
+                        const Divider(color: Color(0xFF263345), height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('ক্যাশ কালেকশন (COD)', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                            Text('৳${o.totalAmount.toInt()}', style: const TextStyle(color: AppTheme.primary, fontSize: 16, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: isDialogSubmitting ? null : () => Navigator.pop(dialogCtx),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFF334155)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: const Text('বাতিল', style: TextStyle(color: Color(0xFF94A3B8))),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: isDialogSubmitting
+                          ? null
+                          : () async {
+                              setDialogState(() => isDialogSubmitting = true);
+                              final orderProvider = Provider.of<OrderProvider>(context, listen: false);
+                              try {
+                                final res = await orderProvider.dispatchCourier(
+                                  o.id,
+                                  courier: courierId,
+                                  dispatchType: dispatchMode,
+                                  consignmentId: consignmentId,
+                                );
+
+                                if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                                if (bottomSheetContext.mounted) Navigator.pop(bottomSheetContext);
+
+                                if (mounted) {
+                                  _showCourierSuccessDialog(res);
+                                }
+                              } catch (e) {
+                                setDialogState(() => isDialogSubmitting = false);
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      backgroundColor: AppTheme.accentRose,
+                                      content: Text(e.toString().replaceAll('Exception:', '').trim()),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: isDialogSubmitting
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                            )
+                          : const Text(
+                              'হ্যাঁ, বুকিং পাঠান',
+                              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showCourierSuccessDialog(Map<String, dynamic> res) {
+    final trackingCode = res['tracking_code']?.toString() ?? res['consignment_id']?.toString() ?? '';
+    final courierName = res['courier_name']?.toString() ?? 'কুরিয়ার সার্ভিস';
+    final orderNum = res['order_number']?.toString() ?? _order?.orderNumber ?? '';
+    final customerName = res['customer_name']?.toString() ?? _order?.customerName ?? '';
+    final customerPhone = res['customer_phone']?.toString() ?? _order?.customerPhone ?? '';
+    final totalAmount = res['total_amount']?.toString() ?? (_order?.totalAmount.toInt().toString() ?? '0');
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF131D2E),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+          side: const BorderSide(color: Color(0xFF263345)),
+        ),
+        contentPadding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.accentEmerald.withOpacity(0.15),
+                shape: BoxShape.circle,
+                border: Border.all(color: AppTheme.accentEmerald.withOpacity(0.35), width: 2),
+              ),
+              child: const Icon(
+                Icons.check_circle_rounded,
+                color: AppTheme.accentEmerald,
+                size: 46,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'কুরিয়ারে বুকিং সফল হয়েছে!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              res['message']?.toString() ?? 'পার্সেল সফলভাবে কুরিয়ার সার্ভিসে এন্ট্রি হয়েছে।',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+
+            if (trackingCode.isNotEmpty) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppTheme.accentEmerald.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'কনসাইনমেন্ট / ট্র্যাকিং আইডি',
+                      style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SelectableText(
+                            trackingCode,
+                            style: const TextStyle(
+                              color: AppTheme.accentCyan,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'monospace',
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        InkWell(
+                          onTap: () => _copyToClipboard(
+                            trackingCode,
+                            successMessage: 'ট্র্যাকিং কোড কপি করা হয়েছে!',
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primary.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppTheme.primary.withOpacity(0.4)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.copy_rounded, size: 14, color: AppTheme.primary),
+                                SizedBox(width: 4),
+                                Text(
+                                  'কপি',
+                                  style: TextStyle(
+                                    color: AppTheme.primary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF161F30),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF263345)),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('কুরিয়ার', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+                      Text(courierName, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('অর্ডার', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+                      Text('#$orderNum', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                  if (customerName.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('গ্রাহক', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+                        Text('$customerName ($customerPhone)', style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('ক্যাশ কালেকশন (COD)', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+                      Text('৳$totalAmount', style: const TextStyle(color: AppTheme.primary, fontSize: 12, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _loadDetail();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.accentEmerald,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text(
+                  'ঠিক আছে (সম্পন্ন)',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _openCourierDispatchModal() {
     if (_order == null) return;
-    String selectedCourier = 'steadfast';
+    final configuredCouriers = _getConfiguredCouriers();
+    if (configuredCouriers.isEmpty) {
+      _showNoCourierConfiguredDialog();
+      return;
+    }
+
+    String selectedCourier = configuredCouriers.first['id']!;
+    final defaultProvider = _courierSettings['provider']?.toString();
+    if (defaultProvider != null && configuredCouriers.any((c) => c['id'] == defaultProvider)) {
+      selectedCourier = defaultProvider;
+    }
+
     String dispatchMode = 'api'; // 'api' or 'manual'
     final consignmentController = TextEditingController();
-    bool isSubmitting = false;
 
     showModalBottomSheet(
       context: context,
@@ -264,7 +805,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                const Text('কুরিয়ার সার্ভিস নির্বাচন করুন', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.w600)),
+                const Text('কুরিয়ার সার্ভিস নির্বাচন করুন (শুধু কনফিগারকৃত)', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -278,12 +819,15 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       value: selectedCourier,
                       isExpanded: true,
                       dropdownColor: AppTheme.surfaceDark,
-                      items: const [
-                        DropdownMenuItem(value: 'steadfast', child: Text('Steadfast Courier (স্টেডফাস্ট)', style: TextStyle(color: Colors.white, fontSize: 13))),
-                        DropdownMenuItem(value: 'pathao', child: Text('Pathao Courier (পাঠাও)', style: TextStyle(color: Colors.white, fontSize: 13))),
-                        DropdownMenuItem(value: 'redx', child: Text('RedX Courier (রেডেক্স)', style: TextStyle(color: Colors.white, fontSize: 13))),
-                        DropdownMenuItem(value: 'manual', child: Text('Manual / অন্যান্য লোকাল কুরিয়ার', style: TextStyle(color: Colors.white, fontSize: 13))),
-                      ],
+                      items: configuredCouriers.map((courier) {
+                        return DropdownMenuItem<String>(
+                          value: courier['id'],
+                          child: Text(
+                            courier['name'] ?? courier['id']!,
+                            style: const TextStyle(color: Colors.white, fontSize: 13),
+                          ),
+                        );
+                      }).toList(),
                       onChanged: (val) {
                         if (val != null) {
                           setModalState(() {
@@ -335,7 +879,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     controller: consignmentController,
                     style: const TextStyle(color: Colors.white, fontSize: 13),
                     decoration: InputDecoration(
-                      hintText: 'উদা: STF-783921 বা সুন্দরবন স্লিপ নম্বর',
+                      hintText: 'উদা: STF-783921 বা কনসাইনমেন্ট নম্বর',
                       hintStyle: const TextStyle(color: Color(0xFF475569), fontSize: 12),
                       filled: true,
                       fillColor: const Color(0xFF0F172A),
@@ -356,50 +900,28 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 SizedBox(
                   width: double.infinity,
                   height: 48,
-                  child: ElevatedButton(
-                    onPressed: isSubmitting
-                        ? null
-                        : () async {
-                            setModalState(() => isSubmitting = true);
-                            final orderProvider = Provider.of<OrderProvider>(context, listen: false);
-                            try {
-                              final res = await orderProvider.dispatchCourier(
-                                _order!.id,
-                                courier: selectedCourier,
-                                dispatchType: dispatchMode,
-                                consignmentId: consignmentController.text.trim().isNotEmpty
-                                    ? consignmentController.text.trim()
-                                    : null,
-                              );
-                              if (ctx.mounted) Navigator.pop(ctx);
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    backgroundColor: AppTheme.accentEmerald,
-                                    content: Text(res['message'] ?? 'পার্সেল সফলভাবে কুরিয়ারে বুকিং করা হয়েছে!'),
-                                  ),
-                                );
-                                _loadDetail();
-                              }
-                            } catch (e) {
-                              setModalState(() => isSubmitting = false);
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    backgroundColor: AppTheme.accentRose,
-                                    content: Text(e.toString().replaceAll('Exception:', '').trim()),
-                                  ),
-                                );
-                              }
-                            }
-                          },
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      final selectedCourierItem = configuredCouriers.firstWhere(
+                        (c) => c['id'] == selectedCourier,
+                        orElse: () => {'id': selectedCourier, 'name': selectedCourier},
+                      );
+                      _showCourierConfirmationDialog(
+                        bottomSheetContext: ctx,
+                        courierId: selectedCourier,
+                        courierName: selectedCourierItem['name'] ?? selectedCourier,
+                        dispatchMode: dispatchMode,
+                        consignmentId: consignmentController.text.trim().isNotEmpty
+                            ? consignmentController.text.trim()
+                            : null,
+                      );
+                    },
+                    icon: const Icon(Icons.arrow_forward_rounded, color: Colors.black, size: 18),
+                    label: const Text('বুকিং নিশ্চিত করতে এগিয়ে যান', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 14)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primary,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: isSubmitting
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                        : const Text('বুকিং নিশ্চিত করুন', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 14)),
                   ),
                 ),
               ],
@@ -530,6 +1052,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         title: Text('#${o.orderNumber}'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.copy_rounded, color: Colors.white, size: 20),
+            tooltip: 'অর্ডার ডাটা কপি করুন',
+            onPressed: () => _copyToClipboard(
+              o.copyableOrderData,
+              successMessage: 'অর্ডারের সম্পূর্ণ ডাটা (নাম, ফোন, ঠিকানা) কপি হয়েছে!',
+            ),
+          ),
+          IconButton(
             icon: Icon(
               isBlocked ? Icons.block : Icons.shield_outlined,
               color: isBlocked ? AppTheme.accentRose : Colors.white,
@@ -628,33 +1158,96 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         'গ্রাহকের তথ্য',
                         style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
                       ),
-                      InkWell(
-                        onTap: () => _callCustomer(o.customerPhone),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primary.withOpacity(0.15),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          InkWell(
+                            onTap: () => _copyToClipboard(
+                              o.copyableOrderData,
+                              successMessage: 'অর্ডারের সম্পূর্ণ ডাটা (নাম, ফোন, ঠিকানা) কপি হয়েছে!',
+                            ),
                             borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: AppTheme.accentCyan.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: AppTheme.accentCyan.withOpacity(0.35)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.copy_rounded, color: AppTheme.accentCyan, size: 14),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'ডাটা কপি',
+                                    style: TextStyle(
+                                      color: AppTheme.accentCyan,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.phone, color: AppTheme.primary, size: 14),
-                              SizedBox(width: 4),
-                              Text('কল করুন', style: TextStyle(color: AppTheme.primary, fontSize: 12, fontWeight: FontWeight.bold)),
-                            ],
+                          const SizedBox(width: 8),
+                          InkWell(
+                            onTap: () => _callCustomer(o.customerPhone),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.phone, color: AppTheme.primary, size: 14),
+                                  SizedBox(width: 4),
+                                  Text('কল করুন', style: TextStyle(color: AppTheme.primary, fontSize: 12, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  _buildDetailRow('নাম', o.customerName),
-                  _buildDetailRow('ফোন নম্বর', o.customerPhone),
+                  const SizedBox(height: 14),
+                  _buildDetailRow(
+                    'নাম',
+                    o.customerName,
+                    copyValue: o.customerName,
+                    copyLabel: 'গ্রাহকের নাম',
+                  ),
+                  _buildDetailRow(
+                    'ফোন নম্বর',
+                    o.customerPhone,
+                    copyValue: o.customerPhone,
+                    copyLabel: 'ফোন নম্বর',
+                  ),
                   if (o.customerEmail != null && o.customerEmail!.isNotEmpty)
-                    _buildDetailRow('ইমেইল', o.customerEmail!),
-                  _buildDetailRow('শিপিং ঠিকানা', o.deliveryAddress.isNotEmpty ? o.deliveryAddress : 'কোনো ঠিকানা নেই'),
+                    _buildDetailRow(
+                      'ইমেইল',
+                      o.customerEmail!,
+                      copyValue: o.customerEmail!,
+                      copyLabel: 'ইমেইল',
+                    ),
+                  _buildDetailRow(
+                    'শিপিং ঠিকানা',
+                    o.deliveryAddress.isNotEmpty ? o.deliveryAddress : 'কোনো ঠিকানা নেই',
+                    copyValue: o.deliveryAddress.isNotEmpty ? o.deliveryAddress : null,
+                    copyLabel: 'শিপিং ঠিকানা',
+                  ),
                   if (o.ipAddress != null)
-                    _buildDetailRow('আইপি অ্যাড্রেস', o.ipAddress!),
+                    _buildDetailRow(
+                      'আইপি অ্যাড্রেস',
+                      o.ipAddress!,
+                      copyValue: o.ipAddress,
+                      copyLabel: 'আইপি অ্যাড্রেস',
+                    ),
                 ],
               ),
             ),
@@ -832,15 +1425,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         if (o.trackingCode != null && o.trackingCode!.isNotEmpty) ...[
                           const SizedBox(width: 8),
                           InkWell(
-                            onTap: () {
-                              Clipboard.setData(ClipboardData(text: o.trackingCode!));
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  duration: Duration(seconds: 1),
-                                  content: Text('ট্র্যাকিং কোড কপি করা হয়েছে!'),
-                                ),
-                              );
-                            },
+                            onTap: () => _copyToClipboard(
+                              o.trackingCode!,
+                              successMessage: 'ট্র্যাকিং কোড কপি করা হয়েছে!',
+                            ),
                             borderRadius: BorderRadius.circular(6),
                             child: Container(
                               padding: const EdgeInsets.all(4),
@@ -907,7 +1495,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(
+    String label,
+    String value, {
+    String? copyValue,
+    String? copyLabel,
+  }) {
+    final canCopy = copyValue != null && copyValue.trim().isNotEmpty;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -918,8 +1513,34 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             child: Text(label, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
           ),
           Expanded(
-            child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),
+            child: Text(
+              value,
+              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+            ),
           ),
+          if (canCopy) ...[
+            const SizedBox(width: 6),
+            InkWell(
+              onTap: () => _copyToClipboard(
+                copyValue,
+                successMessage: '${copyLabel ?? label} কপি করা হয়েছে!',
+              ),
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFF263345)),
+                ),
+                child: const Icon(
+                  Icons.copy_rounded,
+                  size: 13,
+                  color: Color(0xFF94A3B8),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

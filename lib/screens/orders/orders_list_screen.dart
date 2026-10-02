@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
 import '../../providers/order_provider.dart';
@@ -274,7 +275,65 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                                             StatusBadge(status: order.paymentStatus, isPayment: true),
                                           ],
                                         ),
-                                        const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF64748B), size: 14),
+                                        Row(
+                                          children: [
+                                            Material(
+                                              color: Colors.transparent,
+                                              child: InkWell(
+                                                onTap: () {
+                                                  Clipboard.setData(ClipboardData(text: order.copyableOrderData));
+                                                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    SnackBar(
+                                                      content: Row(
+                                                        children: [
+                                                          const Icon(Icons.check_circle_rounded, color: AppTheme.accentEmerald, size: 16),
+                                                          const SizedBox(width: 8),
+                                                          Expanded(
+                                                            child: Text(
+                                                              '#${order.orderNumber} এর ডাটা (নাম, ফোন, ঠিকানা) কপি হয়েছে!',
+                                                              style: const TextStyle(fontSize: 12),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      backgroundColor: const Color(0xFF1E293B),
+                                                      behavior: SnackBarBehavior.floating,
+                                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                                      duration: const Duration(seconds: 2),
+                                                    ),
+                                                  );
+                                                },
+                                                borderRadius: BorderRadius.circular(8),
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                                                  decoration: BoxDecoration(
+                                                    color: AppTheme.accentCyan.withOpacity(0.12),
+                                                    borderRadius: BorderRadius.circular(8),
+                                                    border: Border.all(color: AppTheme.accentCyan.withOpacity(0.3)),
+                                                  ),
+                                                  child: const Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Icon(Icons.copy_rounded, size: 12, color: AppTheme.accentCyan),
+                                                      SizedBox(width: 4),
+                                                      Text(
+                                                        'কপি',
+                                                        style: TextStyle(
+                                                          color: AppTheme.accentCyan,
+                                                          fontSize: 11,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF64748B), size: 14),
+                                          ],
+                                        ),
                                       ],
                                     ),
                                   ],

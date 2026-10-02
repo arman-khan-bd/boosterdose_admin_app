@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_theme.dart';
@@ -309,6 +310,34 @@ class _AbandonedOrdersScreenState extends State<AbandonedOrdersScreen> {
                                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                           ),
                                         ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      IconButton(
+                                        padding: const EdgeInsets.all(6),
+                                        constraints: const BoxConstraints(),
+                                        icon: const Icon(Icons.copy_rounded, color: AppTheme.accentCyan, size: 20),
+                                        tooltip: 'লিডের ডাটা (নাম, ফোন, ঠিকানা) কপি করুন',
+                                        onPressed: () {
+                                          Clipboard.setData(ClipboardData(text: lead.copyableLeadData));
+                                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: const Row(
+                                                children: [
+                                                  Icon(Icons.check_circle_rounded, color: AppTheme.accentEmerald, size: 16),
+                                                  SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text('লিডের ডাটা (নাম, ফোন, ঠিকানা) কপি হয়েছে!'),
+                                                  ),
+                                                ],
+                                              ),
+                                              backgroundColor: const Color(0xFF1E293B),
+                                              behavior: SnackBarBehavior.floating,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                              duration: const Duration(seconds: 2),
+                                            ),
+                                          );
+                                        },
                                       ),
                                       const SizedBox(width: 4),
                                       IconButton(

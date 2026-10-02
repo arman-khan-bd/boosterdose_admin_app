@@ -93,4 +93,37 @@ class OrderModel {
 
   String get bookTitle => book?['title'] ?? 'বই';
   String get shippingAddress => deliveryAddress;
+
+  /// Formatted order text including customer name, phone, address, product, total and order number
+  String get copyableOrderData {
+    final sb = StringBuffer();
+    sb.writeln('নাম: $customerName');
+    sb.writeln('ফোন: $customerPhone');
+    if (deliveryAddress.trim().isNotEmpty) {
+      sb.writeln('ঠিকানা: $deliveryAddress');
+    }
+    if (deliveryArea != null && deliveryArea!.trim().isNotEmpty) {
+      sb.writeln('এরিয়া: $deliveryArea');
+    }
+    sb.writeln('পণ্য: $bookTitle (x$quantity)');
+    sb.writeln('মূল্য: ৳${totalAmount.toStringAsFixed(0)}');
+    if (orderNumber.isNotEmpty) {
+      sb.writeln('অর্ডার নম্বর: #$orderNumber');
+    }
+    if (notes != null && notes!.trim().isNotEmpty) {
+      sb.writeln('নোট: $notes');
+    }
+    return sb.toString().trim();
+  }
+
+  /// Compact customer-only details (name, phone, address)
+  String get copyableCustomerInfo {
+    final sb = StringBuffer();
+    sb.writeln('নাম: $customerName');
+    sb.writeln('ফোন: $customerPhone');
+    if (deliveryAddress.trim().isNotEmpty) {
+      sb.writeln('ঠিকানা: $deliveryAddress');
+    }
+    return sb.toString().trim();
+  }
 }
