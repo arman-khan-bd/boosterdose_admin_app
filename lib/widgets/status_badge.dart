@@ -91,6 +91,8 @@ class StatusBadge extends StatelessWidget {
       }
     }
 
+    final isPending = s == 'pending';
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -98,13 +100,36 @@ class StatusBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: fg.withOpacity(0.3), width: 1),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: fg,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isPending) ...[
+            Container(
+              width: 7,
+              height: 7,
+              margin: const EdgeInsets.only(right: 6),
+              decoration: BoxDecoration(
+                color: fg,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: fg.withOpacity(0.8),
+                    blurRadius: 4,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+            ),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              color: fg,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

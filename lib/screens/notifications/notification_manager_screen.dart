@@ -114,9 +114,14 @@ class _NotificationManagerScreenState extends State<NotificationManagerScreen> {
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: _buildBadgeCard('পরিত্যক্ত কার্ট', '${np.counts!.pendingAbandoned}', AppTheme.accentRose, () {
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const AbandonedOrdersScreen()));
-                          }),
+                          child: _buildBadgeCard(
+                            'পরিত্যক্ত কার্ট',
+                            '${np.items.isNotEmpty ? np.items.where((i) => i.type == 'abandoned_order').length : np.counts!.pendingAbandoned}',
+                            AppTheme.accentRose,
+                            () {
+                              Navigator.push(context, MaterialPageRoute(builder: (_) => const AbandonedOrdersScreen()));
+                            },
+                          ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(

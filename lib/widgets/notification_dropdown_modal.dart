@@ -92,8 +92,9 @@ class _NotificationDropdownModalState extends State<NotificationDropdownModal> {
         final totalUnread = counts?.totalUnread ?? 0;
         final items = np.items;
 
-        // Filter items
+        // Filter items (guaranteeing 5-minute threshold for abandoned orders)
         final filteredItems = items.where((it) {
+          if (!it.isEligibleForDisplay) return false;
           if (_selectedTab == 'all') return true;
           if (_selectedTab == 'order') return it.type == 'order';
           if (_selectedTab == 'abandoned') return it.type == 'abandoned_order';

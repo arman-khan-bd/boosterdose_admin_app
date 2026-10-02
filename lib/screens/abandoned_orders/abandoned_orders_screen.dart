@@ -171,6 +171,30 @@ class _AbandonedOrdersScreenState extends State<AbandonedOrdersScreen> {
             ),
           ),
 
+          // 5-Minute Checkout Grace Notice if any leads are in progress
+          if (provider.inProgressCheckoutCount > 0)
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.accentCyan.withOpacity(0.35)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.timer_outlined, color: AppTheme.accentCyan, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '${provider.inProgressCheckoutCount} জন ক্রেতা এইমাত্র চেকআউটে তথ্য পূরণ করেছেন। ৫ মিনিটের মধ্যে অর্ডার না দিলে পরিত্যক্ত তালিকায় দেখাবে।',
+                      style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11.5, height: 1.3),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           // Abandoned carts list
           Expanded(
             child: provider.isLoading && provider.abandonedOrders.isEmpty

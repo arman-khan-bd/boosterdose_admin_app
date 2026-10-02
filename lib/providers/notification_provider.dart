@@ -20,7 +20,14 @@ class NotificationProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   NotificationItem? get latestArrival => _latestArrival;
-  int get totalUnread => _counts?.totalUnread ?? 0;
+  int get totalUnread {
+    if (_items.isEmpty && (_counts?.totalUnread ?? 0) == 0) return 0;
+    final eligibleAbandoned = _items.where((i) => i.type == 'abandoned_order').length;
+    final orders = _counts?.pendingOrders ?? _items.where((i) => i.type == 'order').length;
+    final reviews = _counts?.pendingReviews ?? _items.where((i) => i.type == 'review').length;
+    final calculated = orders + eligibleAbandoned + reviews;
+    return calculated > 0 ? calculated : (_counts?.totalUnread ?? 0);
+  }
 
   /// Start periodic live polling (default: 25 seconds) to catch new orders and abandoned cart leads in real-time
   void startPolling({Duration interval = const Duration(seconds: 25)}) {
@@ -53,9 +60,12 @@ class NotificationProvider extends ChangeNotifier {
     try {
       final res = await ApiService.getNotificationFeed();
       final NotificationCounts? fetchedCounts = res['counts'];
-      final List<NotificationItem> fetchedItems = res['items'] != null
+      final List<NotificationItem> rawItems = res['items'] != null
           ? List<NotificationItem>.from(res['items'])
           : [];
+
+      // Filter: Do NOT show abandoned order notifications before 5 minutes have elapsed
+      final fetchedItems = rawItems.where((i) => i.isEligibleForDisplay).toList();
 
       // Detect new incoming orders or abandoned cart leads during background polling
       if (!_isFirstFetch && fetchedItems.isNotEmpty) {
@@ -71,7 +81,7 @@ class NotificationProvider extends ChangeNotifier {
         }
       }
 
-      // Track all seen item IDs
+      // Track all seen item IDs that are eligible
       for (final it in fetchedItems) {
         _seenItemIds.add(it.id);
       }

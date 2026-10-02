@@ -649,6 +649,8 @@ class _OverviewScreenState extends State<OverviewScreen> {
         ),
         const SizedBox(height: 8),
         ...recent.map((order) {
+          final isPending = (order['status'] ?? 'pending').toString().toLowerCase() == 'pending';
+
           return InkWell(
             onTap: () {
               Navigator.push(
@@ -661,19 +663,39 @@ class _OverviewScreenState extends State<OverviewScreen> {
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFF161F30),
+                color: isPending ? const Color(0xFF1B243B) : const Color(0xFF161F30),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF263345)),
+                border: isPending
+                    ? Border(
+                        left: const BorderSide(color: Color(0xFFF59E0B), width: 4.5),
+                        top: BorderSide(color: const Color(0xFFF59E0B).withOpacity(0.35), width: 1),
+                        right: const BorderSide(color: Color(0xFF263345), width: 1),
+                        bottom: const BorderSide(color: Color(0xFF263345), width: 1),
+                      )
+                    : Border.all(color: const Color(0xFF263345)),
+                boxShadow: isPending
+                    ? [
+                        BoxShadow(
+                          color: const Color(0xFFF59E0B).withOpacity(0.08),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ]
+                    : null,
               ),
               child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppTheme.primary.withOpacity(0.12),
+                      color: isPending ? const Color(0xFFF59E0B).withOpacity(0.15) : AppTheme.primary.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.receipt_long_rounded, color: AppTheme.primary, size: 22),
+                    child: Icon(
+                      Icons.receipt_long_rounded,
+                      color: isPending ? const Color(0xFFFBBF24) : AppTheme.primary,
+                      size: 22,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -683,13 +705,35 @@ class _OverviewScreenState extends State<OverviewScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              '#${order['order_number']}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
+                            Row(
+                              children: [
+                                if (isPending) ...[
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    margin: const EdgeInsets.only(right: 6),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF59E0B),
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(0xFFF59E0B).withOpacity(0.85),
+                                          blurRadius: 5,
+                                          spreadRadius: 1.5,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                Text(
+                                  '#${order['order_number']}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
                             ),
                             Text(
                               '৳${order['total_amount']}',

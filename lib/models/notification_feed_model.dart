@@ -105,4 +105,38 @@ class NotificationItem {
       timeAgo: json['time_ago'],
     );
   }
+
+  DateTime? get createdDateTime {
+    if (createdAt == null || createdAt!.isEmpty) return null;
+    final normalized = createdAt!.contains('T') ? createdAt! : createdAt!.replaceFirst(' ', 'T');
+    return DateTime.tryParse(normalized);
+  }
+
+  /// Abandoned cart notifications are NOT shown before 5 minutes have elapsed.
+  /// If the user did not create the order within 5 minutes, only then show it as an abandoned order.
+  bool get isEligibleForDisplay {
+    if (type != 'abandoned_order') return true;
+
+    final dt = createdDateTime;
+    if (dt != null) {
+      final now = dt.isUtc ? DateTime.now().toUtc() : DateTime.now();
+      return now.difference(dt).inSeconds >= (5 * 60);
+    }
+
+    if (timeAgo != null && timeAgo!.isNotEmpty) {
+      final lower = timeAgo!.toLowerCase();
+      if (lower.contains('just now') ||
+          lower.contains('এইমাত্র') ||
+          lower.contains('sec') ||
+          lower.contains('সেকেন্ড') ||
+          lower.contains('1 min') || lower.contains('১ মিনিট') ||
+          lower.contains('2 min') || lower.contains('২ মিনিট') ||
+          lower.contains('3 min') || lower.contains('৩ মিনিট') ||
+          lower.contains('4 min') || lower.contains('৪ মিনিট')) {
+        return false;
+      }
+    }
+
+    return true;
+  }
 }

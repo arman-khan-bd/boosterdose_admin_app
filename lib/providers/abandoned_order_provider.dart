@@ -14,11 +14,22 @@ class AbandonedOrderProvider extends ChangeNotifier {
   String _search = '';
   String _selectedRecoveryStatus = 'all';
 
-  List<AbandonedOrderModel> get abandonedOrders => _abandonedOrders;
+  /// Only show abandoned orders where at least 5 minutes have elapsed without an order being created
+  List<AbandonedOrderModel> get abandonedOrders =>
+      _abandonedOrders.where((o) => o.isOlderThan5Minutes).toList();
+
+  /// All abandoned leads including those still within the 5-minute checkout window
+  List<AbandonedOrderModel> get allAbandonedOrders => _abandonedOrders;
+
+  /// Active checkouts currently in progress (< 5 minutes old)
+  int get inProgressCheckoutCount =>
+      _abandonedOrders.where((o) => !o.isOlderThan5Minutes).length;
+
   Map<String, dynamic> get stats => _stats;
   int get currentPage => _currentPage;
   int get lastPage => _lastPage;
-  int get total => _total;
+  int get total => _abandonedOrders.where((o) => o.isOlderThan5Minutes).length;
+  int get rawTotal => _total;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   String get search => _search;

@@ -78,4 +78,26 @@ class AbandonedOrderModel {
 
   String get bookTitle => book?['title'] ?? 'মাস্টারবুক';
   String? get shippingAddress => deliveryAddress;
+
+  DateTime? get createdDateTime {
+    if (createdAt == null || createdAt!.isEmpty) return null;
+    final normalized = createdAt!.contains('T') ? createdAt! : createdAt!.replaceFirst(' ', 'T');
+    return DateTime.tryParse(normalized);
+  }
+
+  /// Whether 5 minutes have elapsed since this lead was created without an order being placed
+  bool get isOlderThan5Minutes {
+    final dt = createdDateTime;
+    if (dt == null) return true;
+    final now = dt.isUtc ? DateTime.now().toUtc() : DateTime.now();
+    return now.difference(dt).inSeconds >= (5 * 60);
+  }
+
+  /// Minutes elapsed since creation
+  int get minutesSinceCreation {
+    final dt = createdDateTime;
+    if (dt == null) return 999;
+    final now = dt.isUtc ? DateTime.now().toUtc() : DateTime.now();
+    return now.difference(dt).inMinutes;
+  }
 }
