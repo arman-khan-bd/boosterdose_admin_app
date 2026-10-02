@@ -11,6 +11,7 @@ import '../models/order_model.dart';
 import '../models/overview_model.dart';
 import '../models/review_model.dart';
 import '../models/section_model.dart';
+import '../models/security_settings_model.dart';
 import '../models/user_model.dart';
 import 'auth_service.dart';
 
@@ -904,6 +905,99 @@ class ApiService {
     final data = jsonDecode(response.body);
     if (response.statusCode != 200 || data['success'] != true) {
       throw ApiException(data['message'] ?? 'Failed to send test notification');
+    }
+  }
+
+  // --- Security & API Blocking Settings ---
+
+  static Future<Map<String, dynamic>> getSecuritySettings() async {
+    final response = await http.get(
+      Uri.parse(ApiConfig.securitySettings),
+      headers: await _getHeaders(),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200 && data['success'] == true) {
+      final config = SecurityConfigModel.fromJson(data['config'] ?? {});
+      final stats = SecurityStatsModel.fromJson(data['stats'] ?? {});
+      final entities = (data['blocked_entities'] as List? ?? [])
+          .map((e) => BlockedEntityModel.fromJson(e))
+          .toList();
+
+      return {
+        'config': config,
+        'stats': stats,
+        'blocked_entities': entities,
+      };
+    }
+    throw ApiException(data['message'] ?? 'Failed to load security settings');
+  }
+
+  static Future<SecurityConfigModel> updateSecuritySettings(SecurityConfigModel config) async {
+    final response = await http.post(
+      Uri.parse(ApiConfig.securitySettings),
+      headers: await _getHeaders(),
+      body: jsonEncode(config.toJson()),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200 && data['success'] == true) {
+      return SecurityConfigModel.fromJson(data['config'] ?? config.toJson());
+    }
+    throw ApiException(data['message'] ?? 'Failed to update security settings');
+  }
+
+  static Future<void> blockSecurityEntity({
+    required String type,
+    required String value,
+    int? durationHours,
+    String? reason,
+  }) async {
+    final response = await http.post(
+      Uri.parse(ApiConfig.securityBlock),
+      headers: await _getHeaders(),
+      body: jsonEncode({
+        'type': type,
+        'value': value,
+        'duration_hours': durationHours,
+        'reason': reason,
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw ApiException(data['message'] ?? 'Failed to block entity');
+    }
+  }
+
+  static Future<void> unblockSecurityEntity({
+    required String type,
+    required String value,
+  }) async {
+    final response = await http.post(
+      Uri.parse(ApiConfig.securityUnblock),
+      headers: await _getHeaders(),
+      body: jsonEncode({
+        'type': type,
+        'value': value,
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw ApiException(data['message'] ?? 'Failed to unblock entity');
+    }
+  }
+
+  static Future<void> deleteSecurityEntity(int id) async {
+    final response = await http.delete(
+      Uri.parse(ApiConfig.securityDelete(id)),
+      headers: await _getHeaders(),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw ApiException(data['message'] ?? 'Failed to delete blocked record');
     }
   }
 }

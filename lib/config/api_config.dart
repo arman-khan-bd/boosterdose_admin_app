@@ -53,4 +53,9 @@ class ApiConfig {
 
   static String get notificationsFeed => '$apiBase/notifications/feed';
   static String get notificationTest => '$apiBase/notifications/test';
+
+  static String get securitySettings => '$apiBase/settings/security';
+  static String get securityBlock => '$apiBase/settings/security/block';
+  static String get securityUnblock => '$apiBase/settings/security/unblock';
+  static String securityDelete(dynamic id) => '$apiBase/settings/security/$id';
 }

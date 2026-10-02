@@ -15,6 +15,7 @@ import 'overview_screen.dart';
 import 'profile/profile_screen.dart';
 import 'reviews/reviews_manager_screen.dart';
 import 'sections/sections_manager_screen.dart';
+import 'security/security_settings_screen.dart';
 import '../widgets/system_permission_modal.dart';
 
 class DashboardShell extends StatefulWidget {
@@ -305,6 +306,15 @@ class _DashboardShellState extends State<DashboardShell> {
                         onTap: () {
                           Navigator.pop(ctx);
                           SystemPermissionModal.show(context);
+                        },
+                      ),
+                      _buildMenuTile(
+                        icon: Icons.security_rounded,
+                        color: AppTheme.accentRose,
+                        title: 'এপিআই ব্লকিং',
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const SecuritySettingsScreen()));
                         },
                       ),
                     ],
